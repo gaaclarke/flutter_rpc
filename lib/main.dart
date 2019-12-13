@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rpc/generated/messages.pb.dart';
@@ -10,16 +12,25 @@ HelloReply _sayHello(HelloRequest request) {
 }
 
 // This could be auto-generated.
-void _setupSayHello() {
+typedef SayHelloFunction = HelloReply Function(HelloRequest);
+void _setupSayHello(SayHelloFunction func) {
   BasicMessageChannel channel = BasicMessageChannel("say-hello", const StandardMessageCodec());
   channel.setMessageHandler((data) async {
-    return _sayHello(HelloRequest.fromBuffer(data)).writeToBuffer();
+    return func(HelloRequest.fromBuffer(data)).writeToBuffer();
   });
+}
+
+// This could be auto-generated
+Future<HelloReply> sayGoodbye(HelloRequest request) async {
+  BasicMessageChannel channel = BasicMessageChannel("say-goodbye", const StandardMessageCodec());
+  Uint8List serializedRequest = request.writeToBuffer();
+  Uint8List serializedResponse = await channel.send(serializedRequest);
+  return HelloReply.fromBuffer(serializedResponse);
 }
 
 void main() {
   runApp(MyApp());
-  _setupSayHello();
+  _setupSayHello(_sayHello);
 }
 
 class MyApp extends StatelessWidget {
@@ -66,7 +77,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  void _incrementCounter() {
+  Future<void> _incrementCounter() async {
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
@@ -75,6 +86,9 @@ class _MyHomePageState extends State<MyHomePage> {
       // called again, and so nothing would appear to happen.
       _counter++;
     });
+    HelloRequest request = HelloRequest()..name = "Dartland";
+    HelloReply reply = await sayGoodbye(request);
+    print(reply.message);
   }
 
   @override
